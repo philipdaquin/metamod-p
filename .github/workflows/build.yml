@@ -40,7 +40,7 @@ jobs:
     - name: Extract binaries
       run: |
         mkdir -p output
-        docker run --rm -v ${{ github.workspace }}/output:/host metamod-build sh -c "cp -r /output/* /host/"
+        docker run --rm -v ${{ github.workspace }}/output:/host metamod-build sh -c "cp -r /output/* /host/ && chown -R $(id -u):$(id -g) /host/"
         ls -laR output/
 
     - name: Verify Xash3D symbols
@@ -53,13 +53,16 @@ jobs:
         VERSION="${{ steps.version.outputs.version }}"
 
         # Package Linux (.tar.gz)
-        rm -f output/addons/metamod/dlls/metamod.dll
-        tar -czvf "metamod-${VERSION}-linux.tar.gz" -C output addons/
+        mkdir -p linux/addons/metamod/dlls
+        cp output/addons/metamod/dlls/metamod.so linux/addons/metamod/dlls/
+        cp output/addons/metamod/plugins.ini linux/addons/metamod/
+        tar -czvf "metamod-${VERSION}-linux.tar.gz" -C linux addons/
 
         # Package Windows (.zip)
-        rm -f output/addons/metamod/dlls/metamod.so
-        docker run --rm -v ${{ github.workspace }}/output:/host metamod-build sh -c "cp /output/addons/metamod/dlls/metamod.dll /host/addons/metamod/dlls/"
-        cd output
+        mkdir -p windows/addons/metamod/dlls
+        cp output/addons/metamod/dlls/metamod.dll windows/addons/metamod/dlls/
+        cp output/addons/metamod/plugins.ini windows/addons/metamod/
+        cd windows
         zip -r "../metamod-${VERSION}-windows.zip" addons/
         cd ..
 
