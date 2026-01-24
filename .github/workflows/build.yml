@@ -1,0 +1,64 @@
+name: Build Metamod-P
+
+on:
+  push:
+    branches: [ master, main, xash3d-fix ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master, main, xash3d-fix ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build with Docker
+      run: |
+        docker build --platform linux/386 -t metamod-build .
+
+    - name: Extract binaries
+      run: |
+        mkdir -p output
+        docker run --rm -v ${{ github.workspace }}/output:/host metamod-build sh -c "cp /output/* /host/"
+        ls -la output/
+
+    - name: Verify Xash3D symbols
+      run: |
+        echo "=== Checking Xash3D support ==="
+        docker run --rm metamod-build sh -c "nm -D /output/metamod.so | grep -E 'Server_GetPhysicsInterface|dlsym_metamod'"
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: metamod-p-binaries
+        path: output/
+        retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: metamod-p-binaries
+        path: output/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          output/metamod.so
+          output/metamod.dll
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
