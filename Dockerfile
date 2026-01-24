@@ -1,5 +1,5 @@
 # Dockerfile para compilar metamod-p
-# Gera metamod.so (Linux) e metamod.dll (Windows)
+# Gera metamod.so (Linux) e metamod.dll (Windows) com suporte Xash3D
 
 FROM debian:bullseye
 
@@ -26,10 +26,11 @@ RUN cd /build/metamod && \
     make XASH3D=1 linux_opt && \
     make XASH3D=1 OS=windows win32_opt
 
-# Strip debug symbols e copiar para output
-RUN mkdir -p /output && \
-    strip --strip-all /build/dlls/metamod.so -o /output/metamod.so && \
-    strip --strip-all /build/dlls/metamod.dll -o /output/metamod.dll
+# Criar estrutura de pastas e copiar binários
+RUN mkdir -p /output/addons/metamod/dlls && \
+    touch /output/addons/metamod/plugins.ini && \
+    strip --strip-all /build/dlls/metamod.so -o /output/addons/metamod/dlls/metamod.so && \
+    strip --strip-all /build/dlls/metamod.dll -o /output/addons/metamod/dlls/metamod.dll
 
 # Output final em /output
-CMD ["ls", "-la", "/output/"]
+CMD ["ls", "-laR", "/output/"]

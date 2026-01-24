@@ -3,7 +3,6 @@ name: Build Metamod-P
 on:
   push:
     branches: [ master, main, xash3d-fix ]
-    tags: [ 'v*' ]
   pull_request:
     branches: [ master, main, xash3d-fix ]
   workflow_dispatch:
@@ -15,6 +14,21 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get version info
+      id: version
+      run: |
+        BASE_COMMIT="0deea5a888bc44dc68f1ede29c291675cbbff059"
+        GIT_COUNT=$(git rev-list --count ${BASE_COMMIT}..HEAD)
+        VERSION="1.21p37-xash3d-git${GIT_COUNT}"
+        TAG_NAME="v${VERSION}"
+        echo "git_count=${GIT_COUNT}" >> $GITHUB_OUTPUT
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+        echo "Version: ${VERSION}"
+        echo "Tag: ${TAG_NAME}"
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -26,39 +40,51 @@ jobs:
     - name: Extract binaries
       run: |
         mkdir -p output
-        docker run --rm -v ${{ github.workspace }}/output:/host metamod-build sh -c "cp /output/* /host/"
-        ls -la output/
+        docker run --rm -v ${{ github.workspace }}/output:/host metamod-build sh -c "cp -r /output/* /host/"
+        ls -laR output/
 
     - name: Verify Xash3D symbols
       run: |
         echo "=== Checking Xash3D support ==="
-        docker run --rm metamod-build sh -c "nm -D /output/metamod.so | grep -E 'Server_GetPhysicsInterface|dlsym_metamod'"
+        nm -D output/addons/metamod/dlls/metamod.so | grep -E 'Server_GetPhysicsInterface|dlsym_metamod'
+
+    - name: Create release packages
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+
+        # Package Linux (.tar.gz)
+        rm -f output/addons/metamod/dlls/metamod.dll
+        tar -czvf "metamod-${VERSION}-linux.tar.gz" -C output addons/
+
+        # Package Windows (.zip)
+        rm -f output/addons/metamod/dlls/metamod.so
+        docker run --rm -v ${{ github.workspace }}/output:/host metamod-build sh -c "cp /output/addons/metamod/dlls/metamod.dll /host/addons/metamod/dlls/"
+        cd output
+        zip -r "../metamod-${VERSION}-windows.zip" addons/
+        cd ..
+
+        # Listar arquivos criados
+        ls -la metamod-*.tar.gz metamod-*.zip
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: metamod-p-binaries
-        path: output/
+        name: metamod-p-${{ steps.version.outputs.version }}
+        path: |
+          metamod-*.tar.gz
+          metamod-*.zip
         retention-days: 30
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: metamod-p-binaries
-        path: output/
-
     - name: Create Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/xash3d-fix'
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ steps.version.outputs.tag_name }}
+        name: Metamod-P ${{ steps.version.outputs.version }}
         files: |
-          output/metamod.so
-          output/metamod.dll
+          metamod-*.tar.gz
+          metamod-*.zip
         generate_release_notes: true
+        make_latest: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
