@@ -1,0 +1,36 @@
+name: Build Metamod-P
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib make libc6-dev-i386
+
+      - name: Apply noexecstack fix
+        run: |
+          sed -i 's|LINK_LINUX=$(CC) $(CFLAGS) -shared -ldl -lm -static-libgcc $(EXTRA_LINK) $(OBJ_LINUX) -o $@|LINK_LINUX=$(CC) $(CFLAGS) -shared -ldl -lm -static-libgcc $(EXTRA_LINK) -Wl,-z,noexecstack $(OBJ_LINUX) -o $@|' metamod/Makefile
+
+      - name: Build
+        run: |
+          make clean
+          make
+
+      - name: Verify noexecstack
+        run: |
+          readelf -l dlls/metamod.so | grep STACK || echo "STACK not found in headers"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metamod_1386.so
+          path: dlls/metamod.so
