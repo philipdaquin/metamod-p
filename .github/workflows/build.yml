@@ -27,10 +27,10 @@ jobs:
 
       - name: Verify noexecstack
         run: |
-          readelf -l dlls/metamod.so | grep STACK || echo "STACK not found in headers"
+          readelf -l metamod/debug.linux_i386/metamod.so | grep STACK
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: metamod_1386.so
-          path: dlls/metamod.so
+          path: metamod/debug.linux_i386/metamod.so
