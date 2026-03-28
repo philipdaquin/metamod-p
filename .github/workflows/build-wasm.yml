@@ -23,16 +23,37 @@ jobs:
         run: |
           export PATH="/emsdk/upstream/emscripten:/emsdk/node/22.16.0_64bit/bin:$PATH"
           which emcc
-          rm -rf metamod/wasm.linux_i386 metamod/opt.linux_i386 metamod/debug.linux_i386
-          cd metamod && make XASH3D=1 TARGET=wasm32 wasm32
-
-      - name: Verify output
-        run: |
-          find . -name "*.wasm" -type f
+          
+          rm -rf wasm_build
+          mkdir -p wasm_build
+          
+          # Exclude platform-specific files for WASM
+          SRC_FILES="api_hook.cpp api_info.cpp commands_meta.cpp conf_meta.cpp dllapi.cpp engine_api.cpp engineinfo.cpp game_support.cpp game_autodetect.cpp h_export.cpp linkgame.cpp linkplug.cpp log_meta.cpp meta_eiface.cpp metamod.cpp mlist.cpp mplayer.cpp mplugin.cpp mqueue.cpp mreg.cpp mutil.cpp osdep.cpp osdep_p.cpp reg_support.cpp sdk_util.cpp studioapi.cpp support_meta.cpp thread_logparse.cpp vdate.cpp"
+          
+          # Compile each file with em++
+          for f in $SRC_FILES; do
+            if [ -f "metamod/$f" ]; then
+              echo "Compiling $f..."
+              em++ -DXASH_DLSYM_META -DWASM_BUILD -D__METAMOD_BUILD__ \
+                -s WASM=1 -s SIDE_MODULE=1 -s ALLOW_MEMORY_GROWTH=1 \
+                -s INITIAL_MEMORY=33554432 -s TOTAL_STACK=8388608 \
+                --no-entry -Oz \
+                -I./metamod -I./hlsdk/engine -I./hlsdk/common -I./hlsdk/pm_shared -I./hlsdk/dlls -I./hlsdk \
+                -c "metamod/$f" -o "wasm_build/${f%.cpp}.o"
+            fi
+          done
+          
+          # Link all object files into WASM
+          echo "Linking..."
+          em++ -s WASM=1 -s SIDE_MODULE=1 -s ALLOW_MEMORY_GROWTH=1 \
+            -s INITIAL_MEMORY=33554432 -s TOTAL_STACK=8388608 \
+            --no-entry -s EXPORTED_FUNCTIONS="['_GiveFnptrsToDll','_Meta_Query','_Meta_Attach','_Meta_Detach','_Meta_PluginLoad','_Meta_PluginUnload']" \
+            wasm_build/*.o -o metamod_emscripten_wasm32.wasm
+          
+          ls -la metamod_emscripten_wasm32.wasm
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: metamod_emscripten_wasm32.wasm
-          path: |
-            metamod/wasm.linux_i386/*.wasm
+          path: metamod_emscripten_wasm32.wasm

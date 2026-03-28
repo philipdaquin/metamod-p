@@ -345,6 +345,7 @@ ifeq "$(TARGET)" "wasm32"
 
 	$(TARGET_WASM): $(OBJDIR_WASM) $(OBJ_WASM)
 	$(LINK_WASM)
+
 endif
 
 
