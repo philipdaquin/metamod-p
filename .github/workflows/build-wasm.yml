@@ -13,7 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: ludufre/metamod-p
+          repository: philipdaquin/metamod-p
+          ref: wasm-build
           path: metamod-p
 
       - name: Install dependencies
@@ -25,7 +26,7 @@ jobs:
           cd metamod-p
           source /emsdk/emsdk_env.sh
           make clean || true
-          make XASH3D=1 wasm32
+          make XASH3D=1 TARGET=wasm32
 
       - name: Verify output
         run: |
