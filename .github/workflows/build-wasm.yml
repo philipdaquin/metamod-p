@@ -16,30 +16,24 @@ jobs:
         with:
           repository: philipdaquin/metamod-p
           ref: wasm-build
-          path: metamod-p
-
-      - name: Check emcc location
-        run: |
-          which emcc || echo "emcc not in PATH"
-          ls /emsdk/ || echo "No /emsdk"
-          ls /emsdk/upstream/emscripten/emcc || echo "emcc not in /emsdk"
-          echo "PATH=$PATH"
 
       - name: Build WASM
         env:
           EMSDK: /emsdk
         run: |
           export PATH="/emsdk/upstream/emscripten:/emsdk/node/22.16.0_64bit/bin:$PATH"
-          cd /home/node/metamod-p
+          echo "PATH=$PATH"
+          which emcc
           make clean || true
           make XASH3D=1 TARGET=wasm32
 
       - name: Verify output
         run: |
-          find /home/node -name "*.wasm" -type f 2>/dev/null || echo "No wasm files found"
+          find . -name "*.wasm" -type f 2>/dev/null
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: metamod_emscripten_wasm32.wasm
-          path: /home/node/metamod-p/**/*.wasm
+          path: |
+            **/*.wasm
