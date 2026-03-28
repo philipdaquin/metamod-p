@@ -15,7 +15,12 @@ SRCFILES = api_hook.cpp api_info.cpp commands_meta.cpp conf_meta.cpp \
 INFOFILES = info_name.h vers_meta.h
 RESFILE = res_meta.rc
 
-ifeq "$(OS)" "linux"
+ifeq "$(TARGET)" "wasm32"
+	SRCFILES:=$(filter-out osdep_linkent_linux.cpp osdep_linkent_win32.cpp osdep_detect_gamedll_linux.cpp osdep_detect_gamedll_win32.cpp, $(SRCFILES))
+	SRCFILES+=osdep_wasm.cpp
+	EXTRA_CFLAGS += -DWASM_BUILD -DXASH_DLSYM_META
+	EXTRA_LINK+=--js-library $(METADIR)/osdep_wasm_jslib.js
+else ifeq "$(OS)" "linux"
 	SRCFILES+=osdep_linkent_linux.cpp osdep_detect_gamedll_linux.cpp
 	EXTRA_LINK+=
 else

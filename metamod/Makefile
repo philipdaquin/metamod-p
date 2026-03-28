@@ -301,6 +301,54 @@ TARGET_WIN = $(OBJDIR_WIN)/$(LIBFILE_WIN)
 
 
 #############################################################################
+# BUILDING WASM (Emscripten)
+#############################################################################
+
+ifeq "$(TARGET)" "wasm32"
+	# Force emcc as compiler
+	CC=emcc
+	CXX=em++
+	
+	# WASM-specific CFLAGS
+	CFLAGS_WASM = -Wall -Wno-unknown-pragmas -Wno-attributes
+	CFLAGS_WASM += -DXASH_DLSYM_META -DWASM_BUILD -D__METAMOD_BUILD__
+	CFLAGS_WASM += -s WASM=1
+	CFLAGS_WASM += -s SIDE_MODULE=1
+	CFLAGS_WASM += -s ALLOW_MEMORY_GROWTH=1
+	CFLAGS_WASM += -s INITIAL_MEMORY=33554432
+	CFLAGS_WASM += -s TOTAL_STACK=8388608
+	CFLAGS_WASM += --no-entry
+	CFLAGS_WASM += -Oz
+	CFLAGS += $(CFLAGS_WASM)
+
+	OBJDIR_WASM=wasm.linux_i386
+
+	# WASM compile commands using emcc
+	DO_CC_WASM=em++ $(CFLAGS) $(INCLUDEDIRS) -o $@ -c $<
+
+	# WASM link command - create a side module
+	LINK_WASM=em++ $(CFLAGS) $(OBJ_WASM) -o $@
+
+	# WASM object files - exclude platform-specific files
+	SRCFILES_WASM := $(filter-out osdep_linkent_linux.cpp osdep_linkent_win32.cpp osdep_detect_gamedll_linux.cpp osdep_detect_gamedll_win32.cpp, $(SRCFILES))
+
+	OBJ_WASM := $(SRCFILES_WASM:%.cpp=$(OBJDIR_WASM)/%.o)
+
+	# compiling WASM object files
+	$(OBJDIR_WASM)/%.o: $(SRCDIR)/%.cpp
+		$(DO_CC_WASM)
+
+	# WASM target file
+	LIBFILE_WASM = $(MODNAME)_emscripten_wasm32.wasm
+	TARGET_WASM = $(OBJDIR_WASM)/$(LIBFILE_WASM)
+	TARGET_FILE = $(TARGET_WASM)
+
+	$(TARGET_WASM): $(OBJDIR_WASM) $(OBJ_WASM)
+	$(LINK_WASM)
+endif
+
+
+#############################################################################
 # OVERRIDES
 #############################################################################
 
@@ -335,6 +383,8 @@ linux_opt:
 	$(MAKE) linux OPT=opt
 win32_opt: 
 	$(MAKE) win32 OPT=opt
+
+wasm32: do_dll_wasm
 
 $(TARGET_LINUX): msgs/debug msgs/warning msgs/log msgs/error $(OBJDIR_LINUX) $(OBJ_LINUX)
 	$(LINK_LINUX)
@@ -412,6 +462,7 @@ dll_linux dll_win32:
 
 do_dll_linux: $(DLLS_DIR) $(DLLS_DIR)/$(LIBFILE_LINUX)
 do_dll_win32: $(DLLS_DIR) $(DLLS_DIR)/$(LIBFILE_WIN)
+do_dll_wasm: $(DLLS_DIR) $(DLLS_DIR)/$(LIBFILE_WASM)
 
 $(DLLS_DIR):
 	mkdir $(DLLS_DIR)
@@ -421,6 +472,9 @@ $(DLLS_DIR)/$(LIBFILE_LINUX): $(TARGET_LINUX)
 
 $(DLLS_DIR)/$(LIBFILE_WIN): $(TARGET_WIN)
 	$(INSTALL) $+ $@
+
+$(DLLS_DIR)/$(LIBFILE_WASM): $(TARGET_WASM)
+	cp $+ $@
 
 dlls: dll_linux dll_win32
 rmdlls:

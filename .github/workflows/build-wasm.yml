@@ -1,0 +1,40 @@
+name: Build Metamod-P WASM
+
+on:
+  push:
+    branches: [wasm-build]
+  workflow_dispatch:
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+    container:
+      image: emscripten/emsdk:3.1.50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ludufre/metamod-p
+          path: metamod-p
+
+      - name: Install dependencies
+        run: |
+          apt-get update && apt-get install -y make git
+
+      - name: Build WASM
+        run: |
+          cd metamod-p
+          source /emsdk/emsdk_env.sh
+          make clean || true
+          make XASH3D=1 wasm32
+
+      - name: Verify output
+        run: |
+          ls -la metamod-p/dlls/*.wasm 2>/dev/null || ls -la metamod-p/metamod/*.wasm 2>/dev/null || find metamod-p -name "*.wasm" -type f
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metamod_emscripten_wasm32.wasm
+          path: |
+            metamod-p/dlls/*.wasm
+            metamod-p/dlls/*.so
