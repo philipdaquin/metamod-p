@@ -30,13 +30,13 @@ jobs:
           # Exclude platform-specific files for WASM
           SRC_FILES="api_hook.cpp api_info.cpp commands_meta.cpp conf_meta.cpp dllapi.cpp engine_api.cpp engineinfo.cpp game_support.cpp game_autodetect.cpp h_export.cpp linkgame.cpp linkplug.cpp log_meta.cpp meta_eiface.cpp metamod.cpp mlist.cpp mplayer.cpp mplugin.cpp mqueue.cpp mreg.cpp mutil.cpp osdep.cpp osdep_p.cpp reg_support.cpp sdk_util.cpp studioapi.cpp support_meta.cpp thread_logparse.cpp vdate.cpp"
           
-          # Compile each file with em++ (add -Dlinux for osdep.h)
+          # Compile each file with em++ (add -Dlinux for osdep.h, -fPIC for SIDE_MODULE)
           for f in $SRC_FILES; do
             if [ -f "metamod/$f" ]; then
               echo "Compiling $f..."
-              em++ -Dlinux -DXASH_DLSYM_META -DWASM_BUILD -D__METAMOD_BUILD__ \
+              em++ -Dlinux -fPIC -DXASH_DLSYM_META -DWASM_BUILD -D__METAMOD_BUILD__ \
                 -I./metamod -I./hlsdk/engine -I./hlsdk/common -I./hlsdk/pm_shared -I./hlsdk/dlls -I./hlsdk \
-                -c "metamod/$f" -o "wasm_build/${f%.cpp}.o" 2>&1 | head -20
+                -c "metamod/$f" -o "wasm_build/${f%.cpp}.o" 2>&1 | head -10
             fi
           done
           
@@ -48,10 +48,9 @@ jobs:
           export PATH="/emsdk/upstream/emscripten:/emsdk/node/22.16.0_64bit/bin:$PATH"
           
           echo "Linking..."
-          em++ -Dlinux -s WASM=1 -s SIDE_MODULE=1 -s ALLOW_MEMORY_GROWTH=1 \
+          em++ -Dlinux -fPIC -s WASM=1 -s SIDE_MODULE=1 -s ALLOW_MEMORY_GROWTH=1 \
             -s INITIAL_MEMORY=33554432 -s TOTAL_STACK=8388608 \
-            --no-entry -s EXPORTED_FUNCTIONS="['_GiveFnptrsToDll','_Meta_Query','_Meta_Attach','_Meta_Detach','_Meta_PluginLoad','_Meta_PluginUnload']" \
-            wasm_build/*.o -o metamod_emscripten_wasm32.wasm
+            --no-entry wasm_build/*.o -o metamod_emscripten_wasm32.wasm
           
           ls -la metamod_emscripten_wasm32.wasm
 
