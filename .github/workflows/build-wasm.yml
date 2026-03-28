@@ -22,18 +22,17 @@ jobs:
           EMSDK: /emsdk
         run: |
           export PATH="/emsdk/upstream/emscripten:/emsdk/node/22.16.0_64bit/bin:$PATH"
-          echo "PATH=$PATH"
           which emcc
-          make clean || true
-          make XASH3D=1 TARGET=wasm32
+          rm -rf metamod/wasm.linux_i386 metamod/opt.linux_i386 metamod/debug.linux_i386
+          cd metamod && make XASH3D=1 TARGET=wasm32 wasm32
 
       - name: Verify output
         run: |
-          find . -name "*.wasm" -type f 2>/dev/null
+          find . -name "*.wasm" -type f
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: metamod_emscripten_wasm32.wasm
           path: |
-            **/*.wasm
+            metamod/wasm.linux_i386/*.wasm
