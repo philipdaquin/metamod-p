@@ -11,31 +11,35 @@ jobs:
     container:
       image: emscripten/emsdk:3.1.50
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           repository: philipdaquin/metamod-p
           ref: wasm-build
           path: metamod-p
 
-      - name: Install dependencies
+      - name: Check emcc location
         run: |
-          apt-get update && apt-get install -y make git
+          which emcc || echo "emcc not in PATH"
+          ls /emsdk/ || echo "No /emsdk"
+          ls /emsdk/upstream/emscripten/emcc || echo "emcc not in /emsdk"
+          echo "PATH=$PATH"
 
       - name: Build WASM
+        env:
+          EMSDK: /emsdk
         run: |
-          cd metamod-p
-          . /emsdk/emsdk_env.sh
+          export PATH="/emsdk/upstream/emscripten:/emsdk/node/22.16.0_64bit/bin:$PATH"
+          cd /home/node/metamod-p
           make clean || true
           make XASH3D=1 TARGET=wasm32
 
       - name: Verify output
         run: |
-          ls -la metamod-p/dlls/*.wasm 2>/dev/null || ls -la metamod-p/metamod/*.wasm 2>/dev/null || find metamod-p -name "*.wasm" -type f
+          find /home/node -name "*.wasm" -type f 2>/dev/null || echo "No wasm files found"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: metamod_emscripten_wasm32.wasm
-          path: |
-            metamod-p/dlls/*.wasm
-            metamod-p/dlls/*.so
+          path: /home/node/metamod-p/**/*.wasm
